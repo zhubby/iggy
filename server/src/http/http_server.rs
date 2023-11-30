@@ -12,21 +12,18 @@ use crate::http::{
 use crate::streaming::systems::system::SharedSystem;
 use axum::http::Method;
 use axum::{middleware, Router};
-use axum_server::tls_rustls::RustlsConfig;
-use std::net::{SocketAddr, TcpListener};
-use std::path::PathBuf;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use tower_http::cors::{AllowOrigin, CorsLayer};
-use tracing::{error, info};
 
 /// Starts the HTTP API server.
 /// Returns the address the server is listening on.
 pub async fn start(config: HttpConfig, system: SharedSystem) -> SocketAddr {
-    let api_name = if config.tls.enabled {
-        "HTTP API (TLS)"
-    } else {
-        "HTTP API"
-    };
+    // let api_name = if config.tls.enabled {
+    //     "HTTP API (TLS)"
+    // } else {
+    //     "HTTP API"
+    // };
 
     let app_state = build_app_state(&config, system).await;
     let mut app = Router::new()
@@ -72,43 +69,48 @@ pub async fn start(config: HttpConfig, system: SharedSystem) -> SocketAddr {
     start_expired_tokens_cleaner(app_state.clone());
     app = app.layer(middleware::from_fn(request_diagnostics));
 
-    let listener = TcpListener::bind(config.address).unwrap();
+    let listener = tokio::net::TcpListener::bind(config.address).await.unwrap();
+    let address = listener
+        .local_addr()
+        .expect("Failed to get local address for HTTP server");
 
-    if !config.tls.enabled {
-        let server = axum::Server::from_tcp(listener)
-            .expect("Failed to start HTTP server")
-            .serve(app.into_make_service_with_connect_info::<SocketAddr>());
-        let addr = server.local_addr();
-        info!("Started {api_name} on: {:?}", addr);
-        tokio::task::spawn(async move {
-            if let Err(error) = server.await {
-                error!("HTTP server error: {}", error);
-            }
-        });
-        addr
-    } else {
-        let tls_config = RustlsConfig::from_pem_file(
-            PathBuf::from(config.tls.cert_file),
-            PathBuf::from(config.tls.key_file),
+    // if !config.tls.enabled {
+    //     info!("Started {api_name} on: {address}");
+    //     tokio::task::spawn(async move {
+    //         axum::serve(listener, app.into_make_service())
+    //             .await
+    //             .expect("Failed to start HTTP server");
+    //     });
+    // } else {
+    //     let tls_config = RustlsConfig::from_pem_file(
+    //         PathBuf::from(config.tls.cert_file),
+    //         PathBuf::from(config.tls.key_file),
+    //     )
+    //     .await
+    //     .unwrap();
+    //     info!("Started {api_name} on: {address}");
+    //     tokio::task::spawn(async move {
+    //         axum::serve(listener, app.into_make_service())
+    //             .tl
+    //             .await
+    //             .expect("Failed to start HTTPS server");
+    //         axum_server::from_tcp_rustls(listener, tls_config)
+    //             .serve(app.into_make_service())
+    //             .await
+    //             .expect("Failed to start HTTPS server");
+    //     });
+    // }
+
+    tokio::task::spawn(async move {
+        axum::serve(
+            listener,
+            app.into_make_service_with_connect_info::<SocketAddr>(),
         )
         .await
-        .unwrap();
+        .expect("Failed to start HTTP server");
+    });
 
-        let addr = listener
-            .local_addr()
-            .expect("Failed to get local address for HTTP TLS server");
-
-        info!("Started {api_name} on: {:?}", addr);
-
-        tokio::task::spawn(async move {
-            axum_server::from_tcp_rustls(listener, tls_config)
-                .serve(app.into_make_service_with_connect_info::<SocketAddr>())
-                .await
-                .unwrap();
-        });
-
-        addr
-    }
+    address
 }
 
 async fn build_app_state(config: &HttpConfig, system: SharedSystem) -> Arc<AppState> {

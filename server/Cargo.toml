@@ -8,7 +8,7 @@ build = "src/build.rs"
 aes-gcm = "0.10.*"
 anyhow = "1.0.*"
 async-trait = "0.1.*"
-axum = "0.6.20"
+axum = "0.7.1"
 axum-server = { version = "0.5.1", features = ["tls-rustls", "tokio-rustls"] }
 bcrypt = "0.15.0"
 blake3 = "1.5.0"
@@ -43,7 +43,7 @@ tokio-native-tls = "0.3.1"
 tokio-rustls = "0.24.1"
 toml = "0.8.*"
 tower = { version = "0.4.13" }
-tower-http = { version = "0.4.0", features = [
+tower-http = { version = "0.5.0", features = [
     "add-extension",
     "cors",
     "trace",
