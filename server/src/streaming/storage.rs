@@ -1,3 +1,4 @@
+use crate::streaming::batching::messages_batch::MessagesBatch;
 use crate::streaming::partitions::partition::{ConsumerOffset, Partition};
 use crate::streaming::partitions::storage::FilePartitionStorage;
 use crate::streaming::persistence::persister::Persister;
@@ -95,7 +96,7 @@ pub trait SegmentStorage: Storage<Segment> {
         &self,
         segment: &Segment,
         index_range: &IndexRange,
-    ) -> Result<Vec<Arc<Message>>, Error>;
+    ) -> Result<Vec<MessagesBatch>, Error>;
     async fn load_newest_messages_by_size(
         &self,
         segment: &Segment,
@@ -104,7 +105,7 @@ pub trait SegmentStorage: Storage<Segment> {
     async fn save_messages(
         &self,
         segment: &Segment,
-        messages: &[Arc<Message>],
+        messages_batches: &[MessagesBatch],
     ) -> Result<u32, Error>;
     async fn load_message_ids(&self, segment: &Segment) -> Result<Vec<u128>, Error>;
     async fn load_checksums(&self, segment: &Segment) -> Result<(), Error>;
@@ -116,12 +117,7 @@ pub trait SegmentStorage: Storage<Segment> {
         index_start_offset: u64,
         index_end_offset: u64,
     ) -> Result<Option<IndexRange>, Error>;
-    async fn save_index(
-        &self,
-        segment: &Segment,
-        current_position: u32,
-        messages: &[Arc<Message>],
-    ) -> Result<(), Error>;
+    async fn save_index(&self, segment: &Segment) -> Result<(), Error>;
     async fn load_all_time_indexes(&self, segment: &Segment) -> Result<Vec<TimeIndex>, Error>;
     async fn load_last_time_index(&self, segment: &Segment) -> Result<Option<TimeIndex>, Error>;
     async fn save_time_index(
@@ -430,7 +426,7 @@ pub(crate) mod tests {
             &self,
             _segment: &Segment,
             _index_range: &IndexRange,
-        ) -> Result<Vec<Arc<Message>>, Error> {
+        ) -> Result<Vec<MessagesBatch>, Error> {
             Ok(vec![])
         }
 
@@ -444,8 +440,8 @@ pub(crate) mod tests {
 
         async fn save_messages(
             &self,
-            _segment: &Segment,
-            _messages: &[Arc<Message>],
+            segment: &Segment,
+            messages_batches: &[MessagesBatch],
         ) -> Result<u32, Error> {
             Ok(0)
         }
@@ -472,12 +468,7 @@ pub(crate) mod tests {
             Ok(None)
         }
 
-        async fn save_index(
-            &self,
-            _segment: &Segment,
-            _current_position: u32,
-            _messages: &[Arc<Message>],
-        ) -> Result<(), Error> {
+        async fn save_index(&self, _segment: &Segment) -> Result<(), Error> {
             Ok(())
         }
 

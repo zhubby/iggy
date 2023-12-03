@@ -1,3 +1,4 @@
+use bytes::Bytes;
 use iggy::models::messages::Message;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

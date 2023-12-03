@@ -1,10 +1,11 @@
 use crate::streaming::common::test_setup::TestSetup;
 use bytes::Bytes;
+use iggy::compression::compression_algorithm::CompressionAlgorithm;
 use iggy::models::messages::{Message, MessageState};
 use iggy::utils::{checksum, timestamp::TimeStamp};
+use server::streaming::batching::messages_batch::{MessagesBatch, MessagesBatchAttributes};
 use server::streaming::segments::segment;
 use server::streaming::segments::segment::{INDEX_EXTENSION, LOG_EXTENSION, TIME_INDEX_EXTENSION};
-use std::sync::Arc;
 use tokio::fs;
 
 #[tokio::test]
@@ -125,10 +126,19 @@ async fn should_persist_and_load_segment_with_messages() {
     )
     .await;
     let messages_count = 10;
+    let mut messages = Vec::new();
     for i in 0..messages_count {
         let message = create_message(i, "test", TimeStamp::now().to_micros());
-        segment.append_messages(&[Arc::new(message)]).await.unwrap();
+        messages.push(message);
     }
+    let attributes = MessagesBatchAttributes::new(CompressionAlgorithm::None).create();
+    let messages_batch =
+        MessagesBatch::messages_to_batch(0, (messages_count - 1) as u32, attributes, messages)
+            .unwrap();
+    segment
+        .append_messages(messages_batch, messages_count.clone() - 1)
+        .await
+        .unwrap();
 
     segment
         .persist_messages(setup.storage.segment.clone())
@@ -185,11 +195,20 @@ async fn given_all_expired_messages_segment_should_be_expired() {
     let now = TimeStamp::now().to_micros();
     let message_expiry = message_expiry as u64;
     let mut expired_timestamp = now - (1000 * 2 * message_expiry);
+    let mut messages = Vec::new();
     for i in 0..messages_count {
         let message = create_message(i, "test", expired_timestamp);
+        messages.push(message);
         expired_timestamp += 1;
-        segment.append_messages(&[Arc::new(message)]).await.unwrap();
     }
+    let attributes = MessagesBatchAttributes::new(CompressionAlgorithm::None).create();
+    let message_batch =
+        MessagesBatch::messages_to_batch(0, (messages_count - 1) as u32, attributes, messages)
+            .unwrap();
+    segment
+        .append_messages(message_batch, messages_count - 1)
+        .await
+        .unwrap();
 
     segment
         .persist_messages(setup.storage.segment.clone())
@@ -236,12 +255,21 @@ async fn given_at_least_one_not_expired_message_segment_should_not_be_expired() 
     let expired_message = create_message(0, "test", expired_timestamp);
     let not_expired_message = create_message(1, "test", not_expired_timestamp);
 
+    let expired_messages = vec![expired_message];
+    let not_expired_messages = vec![not_expired_message];
+
+    let attributes = MessagesBatchAttributes::new(CompressionAlgorithm::None).create();
+    let expired_message_batch =
+        MessagesBatch::messages_to_batch(0, 1, attributes, expired_messages).unwrap();
+    let not_expired_message_batch =
+        MessagesBatch::messages_to_batch(1, 2, attributes, not_expired_messages).unwrap();
+
     segment
-        .append_messages(&[Arc::new(expired_message)])
+        .append_messages(expired_message_batch, 1)
         .await
         .unwrap();
     segment
-        .append_messages(&[Arc::new(not_expired_message)])
+        .append_messages(not_expired_message_batch, 2)
         .await
         .unwrap();
     segment

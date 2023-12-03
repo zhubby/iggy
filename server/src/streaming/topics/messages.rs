@@ -3,10 +3,12 @@ use crate::streaming::polling_consumer::PollingConsumer;
 use crate::streaming::topics::topic::Topic;
 use crate::streaming::utils::file::folder_size;
 use crate::streaming::utils::hash;
+use iggy::compression::compression_algorithm::CompressionAlgorithm;
 use iggy::error::Error;
 use iggy::messages::poll_messages::{PollingKind, PollingStrategy};
 use iggy::messages::send_messages::{Partitioning, PartitioningKind};
 use iggy::models::messages::Message;
+use iggy::utils::crypto::Encryptor;
 use std::collections::HashMap;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
@@ -54,7 +56,7 @@ impl Topic {
         }?;
 
         Ok(PolledMessages {
-            messages,
+            messages: messages.into_iter().map(Arc::new).collect::<Vec<_>>(),
             partition_id,
             current_offset: partition.current_offset,
         })
@@ -63,6 +65,8 @@ impl Topic {
     pub async fn append_messages(
         &self,
         partitioning: &Partitioning,
+        compression_algorithm: CompressionAlgorithm,
+        encryptor: &Option<Box<dyn Encryptor>>,
         messages: Vec<Message>,
     ) -> Result<(), Error> {
         if !self.has_partitions() {
@@ -83,13 +87,15 @@ impl Topic {
             }
         };
 
-        self.append_messages_to_partition(partition_id, messages)
+        self.append_messages_to_partition(partition_id, compression_algorithm, encryptor, messages)
             .await
     }
 
     async fn append_messages_to_partition(
         &self,
         partition_id: u32,
+        compression_algorithm: CompressionAlgorithm,
+        encryptor: &Option<Box<dyn Encryptor>>,
         messages: Vec<Message>,
     ) -> Result<(), Error> {
         let partition = self.partitions.get(&partition_id);
@@ -103,7 +109,9 @@ impl Topic {
 
         let partition = partition.unwrap();
         let mut partition = partition.write().await;
-        partition.append_messages(messages).await?;
+        partition
+            .append_messages(compression_algorithm, encryptor, messages)
+            .await?;
         Ok(())
     }
 
@@ -283,7 +291,7 @@ mod tests {
                 None,
             )];
             topic
-                .append_messages(&partitioning, messages)
+                .append_messages(&partitioning, CompressionAlgorithm::None, &None, messages)
                 .await
                 .unwrap();
         }
@@ -319,7 +327,7 @@ mod tests {
                 None,
             )];
             topic
-                .append_messages(&partitioning, messages)
+                .append_messages(&partitioning, CompressionAlgorithm::None, &None, messages)
                 .await
                 .unwrap();
         }
@@ -382,6 +390,16 @@ mod tests {
         let name = "test";
         let config = Arc::new(SystemConfig::default());
 
-        Topic::create(stream_id, id, name, partitions_count, config, storage, None).unwrap()
+        Topic::create(
+            stream_id,
+            id,
+            name,
+            partitions_count,
+            config,
+            CompressionAlgorithm::None,
+            storage,
+            None,
+        )
+        .unwrap()
     }
 }

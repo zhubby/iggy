@@ -1196,6 +1196,46 @@ pub fn load_errors() -> Vec<ErrorRepositoryEntry> {
             source: "".to_string(),
             template: "Failed to delete consumer group info file for ID: {0} for topic with ID: {1} for stream with ID: {2}.".to_string(),
         },
+        ErrorRepositoryEntry {
+            snake_case_name: "cannot_read_batch_length".to_string(),
+            code: 5009,
+            signature: "".to_string(),
+            converts_from: "".to_string(),
+            source: "".to_string(),
+            template: "Cannot read batch length".to_string(),
+        },
+        ErrorRepositoryEntry {
+            snake_case_name: "cannot_read_last_offset_delta".to_string(),
+            code: 5010,
+            signature: "".to_string(),
+            converts_from: "".to_string(),
+            source: "".to_string(),
+            template: "Cannot read last offset delta".to_string(),
+        },
+        ErrorRepositoryEntry {
+            snake_case_name: "cannot_read_batch_payload".to_string(),
+            code: 5011,
+            signature: "".to_string(),
+            converts_from: "".to_string(),
+            source: "".to_string(),
+            template: "Cannot read batch payload".to_string(),
+        },
+        ErrorRepositoryEntry {
+            snake_case_name: "cannot_read_batch_base_offset".to_string(),
+            code: 5012,
+            signature: "".to_string(),
+            converts_from: "".to_string(),
+            source: "".to_string(),
+            template: "Cannot read batch base offset".to_string(),
+        },
+        ErrorRepositoryEntry {
+            snake_case_name: "cannot_read_attributes".to_string(),
+            code: 5013,
+            signature: "".to_string(),
+            converts_from: "".to_string(),
+            source: "".to_string(),
+            template: "Cannot read attributes".to_string(),
+        },
     ];
 
     error_codes

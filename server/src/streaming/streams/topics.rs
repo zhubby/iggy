@@ -1,5 +1,6 @@
 use crate::streaming::streams::stream::Stream;
 use crate::streaming::topics::topic::Topic;
+use iggy::compression::compression_algorithm::CompressionAlgorithm;
 use iggy::error::Error;
 use iggy::identifier::{IdKind, Identifier};
 use iggy::utils::text;
@@ -32,6 +33,7 @@ impl Stream {
             &name,
             partitions_count,
             self.config.clone(),
+            CompressionAlgorithm::None,
             self.storage.clone(),
             message_expiry,
         )?;

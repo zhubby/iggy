@@ -1,8 +1,9 @@
 use crate::configs::system::SystemConfig;
+use crate::streaming::batching::messages_batch::MessagesBatch;
 use crate::streaming::segments::index::Index;
 use crate::streaming::segments::time_index::TimeIndex;
 use crate::streaming::storage::SystemStorage;
-use iggy::models::messages::Message;
+use bytes::{Bytes, BytesMut};
 use iggy::utils::timestamp::TimeStamp;
 use std::sync::Arc;
 
@@ -16,7 +17,9 @@ pub struct Segment {
     pub stream_id: u32,
     pub topic_id: u32,
     pub partition_id: u32,
+    // TODO (numinex): turn this to start_offset_delta
     pub start_offset: u64,
+    // TODO (numinex): turn this to end_offset_delta
     pub end_offset: u64,
     pub current_offset: u64,
     pub index_path: String,
@@ -25,9 +28,10 @@ pub struct Segment {
     pub current_size_bytes: u32,
     pub is_closed: bool,
     pub(crate) message_expiry: Option<u32>,
-    pub(crate) unsaved_messages: Option<Vec<Arc<Message>>>,
+    pub(crate) unsaved_messages: Option<Vec<MessagesBatch>>,
     pub(crate) config: Arc<SystemConfig>,
     pub(crate) indexes: Option<Vec<Index>>,
+    pub(crate) unsaved_indexes: Vec<u8>,
     pub(crate) time_indexes: Option<Vec<TimeIndex>>,
     pub(crate) storage: Arc<SystemStorage>,
 }
@@ -60,6 +64,7 @@ impl Segment {
                 true => Some(Vec::new()),
                 false => None,
             },
+            unsaved_indexes: Vec::with_capacity(1024),
             time_indexes: match config.segment.cache_time_indexes {
                 true => Some(Vec::new()),
                 false => None,
@@ -94,7 +99,7 @@ impl Segment {
             return false;
         }
 
-        let last_message = last_messages[0].as_ref();
+        let last_message = &last_messages[0];
         let message_expiry = (self.message_expiry.unwrap() * 1000) as u64;
         (last_message.timestamp + message_expiry) <= now
     }

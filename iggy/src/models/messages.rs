@@ -5,14 +5,16 @@ use crate::models::header;
 use crate::models::header::{HeaderKey, HeaderValue};
 use crate::sizeable::Sizeable;
 use crate::utils::{checksum, timestamp::TimeStamp};
-use bytes::{BufMut, Bytes};
+use bytes::{Buf, BufMut, Bytes};
 use serde::{Deserialize, Serialize};
 use serde_with::base64::Base64;
 use serde_with::serde_as;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
+use std::io::Read;
 use std::str::FromStr;
 use std::sync::Arc;
+use tokio::io::AsyncReadExt;
 
 /// The wrapper on top of the collection of messages that are polled from the partition.
 /// It consists of the following fields:
@@ -204,5 +206,45 @@ impl Message {
         }
         bytes.put_u32_le(self.length);
         bytes.extend(&self.payload);
+    }
+}
+impl BytesSerializable for Message {
+    fn as_bytes(&self) -> Vec<u8> {
+        let size = self.get_size_bytes() as usize;
+        let mut buffer = Vec::with_capacity(size);
+        self.extend(&mut buffer);
+        buffer
+    }
+    fn from_bytes(bytes: &[u8]) -> Result<Self, Error>
+    where
+        Self: Sized,
+    {
+        let offset = u64::from_le_bytes(bytes[..8].try_into()?);
+        let state_code = MessageState::from_code(bytes[8])?;
+        let timestamp = u64::from_le_bytes(bytes[9..17].try_into()?);
+        let id = u128::from_le_bytes(bytes[17..33].try_into()?);
+        let checksum = u32::from_le_bytes(bytes[33..37].try_into()?);
+
+        let headers_length = u32::from_le_bytes(bytes[37..41].try_into()?);
+        let headers = match headers_length {
+            0 => None,
+            _ => {
+                let headers_payload = &bytes[41..41 + headers_length as usize];
+                let headers = HashMap::from_bytes(headers_payload)?;
+                Some(headers)
+            }
+        };
+
+        let payload_length = u32::from_le_bytes(bytes[41 + headers_length as usize..].try_into()?);
+        let payload = vec![0; payload_length as usize];
+        Ok(Self::create(
+            offset,
+            state_code,
+            timestamp,
+            id,
+            Bytes::from(payload),
+            checksum,
+            headers,
+        ))
     }
 }

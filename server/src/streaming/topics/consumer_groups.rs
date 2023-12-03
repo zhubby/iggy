@@ -154,6 +154,8 @@ impl Topic {
 
 #[cfg(test)]
 mod tests {
+    use iggy::compression::compression_algorithm::CompressionAlgorithm;
+
     use super::*;
     use crate::configs::system::SystemConfig;
     use crate::streaming::storage::tests::get_test_system_storage;
@@ -300,6 +302,16 @@ mod tests {
         let partitions_count = 3;
         let config = Arc::new(SystemConfig::default());
 
-        Topic::create(stream_id, id, name, partitions_count, config, storage, None).unwrap()
+        Topic::create(
+            stream_id,
+            id,
+            name,
+            partitions_count,
+            config,
+            CompressionAlgorithm::None,
+            storage,
+            None,
+        )
+        .unwrap()
     }
 }

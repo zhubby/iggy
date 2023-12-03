@@ -2,6 +2,7 @@ use crate::configs::system::SystemConfig;
 use crate::streaming::partitions::partition::Partition;
 use crate::streaming::storage::SystemStorage;
 use crate::streaming::topics::consumer_group::ConsumerGroup;
+use iggy::compression::compression_algorithm::CompressionAlgorithm;
 use iggy::error::Error;
 use iggy::utils::timestamp::TimeStamp;
 use std::collections::HashMap;
@@ -17,6 +18,7 @@ pub struct Topic {
     pub path: String,
     pub partitions_path: String,
     pub(crate) config: Arc<SystemConfig>,
+    pub(crate) compression_algorithm: CompressionAlgorithm,
     pub(crate) partitions: HashMap<u32, Arc<RwLock<Partition>>>,
     pub(crate) storage: Arc<SystemStorage>,
     pub(crate) consumer_groups: HashMap<u32, RwLock<ConsumerGroup>>,
@@ -33,7 +35,17 @@ impl Topic {
         config: Arc<SystemConfig>,
         storage: Arc<SystemStorage>,
     ) -> Topic {
-        Topic::create(stream_id, topic_id, "", 0, config, storage, None).unwrap()
+        Topic::create(
+            stream_id,
+            topic_id,
+            "",
+            0,
+            config,
+            CompressionAlgorithm::None,
+            storage,
+            None,
+        )
+        .unwrap()
     }
 
     pub fn create(
@@ -42,6 +54,7 @@ impl Topic {
         name: &str,
         partitions_count: u32,
         config: Arc<SystemConfig>,
+        compression_algorithm: CompressionAlgorithm,
         storage: Arc<SystemStorage>,
         message_expiry: Option<u32>,
     ) -> Result<Topic, Error> {
@@ -54,6 +67,7 @@ impl Topic {
             partitions: HashMap::new(),
             path,
             partitions_path,
+            compression_algorithm,
             storage,
             consumer_groups: HashMap::new(),
             consumer_groups_ids: HashMap::new(),
@@ -122,6 +136,7 @@ mod tests {
             name,
             partitions_count,
             config,
+            CompressionAlgorithm::None,
             storage,
             Some(message_expiry),
         )

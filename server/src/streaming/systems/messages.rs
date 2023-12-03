@@ -112,6 +112,7 @@ impl System {
         let mut batch_size_bytes = 0u64;
 
         // For large batches it would be better to use par_iter() from rayon.
+        /*
         for message in messages {
             let encrypted_message;
             let message = match self.encryptor {
@@ -130,16 +131,30 @@ impl System {
             batch_size_bytes += message.get_size_bytes() as u64;
             received_messages.push(Message::from_message(message));
         }
+         */
 
         // If there's enough space in cache, do nothing.
         // Otherwise, clean the cache.
+        /*
         if let Some(memory_tracker) = CacheMemoryTracker::get_instance() {
             if !memory_tracker.will_fit_into_cache(batch_size_bytes) {
                 self.clean_cache(batch_size_bytes).await;
             }
         }
+         */
+        let compression_algorithm = if self.config.compression.allow_override {
+            self.config.compression.default_algorithm
+        } else {
+            topic.compression_algorithm
+        };
+
         topic
-            .append_messages(partitioning, received_messages)
+            .append_messages(
+                partitioning,
+                compression_algorithm,
+                &self.encryptor,
+                received_messages,
+            )
             .await?;
         self.metrics.increment_messages(messages.len() as u64);
         Ok(())

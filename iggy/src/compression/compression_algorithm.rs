@@ -1,3 +1,4 @@
+use crate::compression::compressor::{Compressor, GzCompressor};
 use serde::{
     de::{self, Deserializer, Visitor},
     Deserialize, Serialize, Serializer,
@@ -11,7 +12,7 @@ use crate::error::Error;
 
 // for now only those, in the future will add snappy, lz4, zstd (same as in confluent kafka) in addition to that
 // we should consider brotli as well.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum CompressionAlgorithm {
     None,
     Gzip,
@@ -41,6 +42,12 @@ impl CompressionAlgorithm {
             1 => Ok(CompressionAlgorithm::None),
             2 => Ok(CompressionAlgorithm::Gzip),
             _ => Err(Error::InvalidCommand),
+        }
+    }
+    pub fn min_data_size(&self) -> usize {
+        match self {
+            CompressionAlgorithm::None => 0,
+            CompressionAlgorithm::Gzip => 150,
         }
     }
 }
