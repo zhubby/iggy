@@ -51,8 +51,8 @@ impl Add for MessageExpiry {
     fn add(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
             (MessageExpiry::NeverExpire, MessageExpiry::NeverExpire) => MessageExpiry::NeverExpire,
-            (MessageExpiry::NeverExpire, message_expiry) => message_expiry,
-            (message_expiry, MessageExpiry::NeverExpire) => message_expiry,
+            (MessageExpiry::NeverExpire, message_expiry_secs) => message_expiry_secs,
+            (message_expiry_secs, MessageExpiry::NeverExpire) => message_expiry_secs,
             (
                 MessageExpiry::ExpireDuration(lhs_duration),
                 MessageExpiry::ExpireDuration(rhs_duration),
@@ -175,16 +175,16 @@ mod tests {
 
     #[test]
     fn should_calculate_none_from_never_message_expiry() {
-        let message_expiry = MessageExpiry::NeverExpire;
-        let result: Option<u32> = From::from(&message_expiry);
+        let message_expiry_secs = MessageExpiry::NeverExpire;
+        let result: Option<u32> = From::from(&message_expiry_secs);
         assert_eq!(result, None);
     }
 
     #[test]
     fn should_calculate_some_seconds_from_message_expire() {
         let duration = std::time::Duration::new(42, 0);
-        let message_expiry = MessageExpiry::ExpireDuration(duration);
-        let result: Option<u32> = From::from(&message_expiry);
+        let message_expiry_secs = MessageExpiry::ExpireDuration(duration);
+        let result: Option<u32> = From::from(&message_expiry_secs);
         assert_eq!(result, Some(42));
     }
 

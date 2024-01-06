@@ -34,7 +34,7 @@ impl Topic {
                 true,
                 self.config.clone(),
                 self.storage.clone(),
-                self.message_expiry,
+                self.message_expiry_secs,
             );
             self.partitions
                 .insert(partition_id, Arc::new(RwLock::new(partition)));

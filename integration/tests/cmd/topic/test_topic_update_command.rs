@@ -21,9 +21,11 @@ struct TestTopicUpdateCmd {
     stream_name: String,
     topic_id: u32,
     topic_name: String,
-    message_expiry: Option<Vec<String>>,
+    message_expiry_secs: Option<Vec<String>>,
+    max_topic_size_bytes: Option<u64>,
     topic_new_name: String,
-    topic_new_message_expiry: Option<Vec<String>>,
+    topic_new_message_expiry_secs: Option<Vec<String>>,
+    topic_new_max_size_bytes: Option<u64>,
     using_stream_id: TestStreamId,
     using_topic_id: TestTopicId,
 }
@@ -35,9 +37,11 @@ impl TestTopicUpdateCmd {
         stream_name: String,
         topic_id: u32,
         topic_name: String,
-        message_expiry: Option<Vec<String>>,
+        message_expiry_secs: Option<Vec<String>>,
+        max_topic_size_bytes: Option<u64>,
         topic_new_name: String,
-        topic_new_message_expiry: Option<Vec<String>>,
+        topic_new_message_expiry_secs: Option<Vec<String>>,
+        topic_new_max_size_bytes: Option<u64>,
         using_stream_id: TestStreamId,
         using_topic_id: TestTopicId,
     ) -> Self {
@@ -46,9 +50,11 @@ impl TestTopicUpdateCmd {
             stream_name,
             topic_id,
             topic_name,
-            message_expiry,
+            message_expiry_secs,
+            max_topic_size_bytes,
             topic_new_name,
-            topic_new_message_expiry,
+            topic_new_message_expiry_secs,
+            topic_new_max_size_bytes,
             using_stream_id,
             using_topic_id,
         }
@@ -67,8 +73,12 @@ impl TestTopicUpdateCmd {
 
         command.push(self.topic_new_name.clone());
 
-        if let Some(message_expiry) = &self.topic_new_message_expiry {
-            command.extend(message_expiry.clone());
+        if let Some(message_expiry_secs) = &self.topic_new_message_expiry_secs {
+            command.extend(message_expiry_secs.clone());
+        }
+
+        if let Some(max_size_bytes) = &self.topic_new_max_size_bytes {
+            command.push(format!("{}", max_size_bytes));
         }
 
         command
@@ -86,15 +96,19 @@ impl IggyCmdTestCase for TestTopicUpdateCmd {
             .await;
         assert!(stream.is_ok());
 
-        let message_expiry = match &self.message_expiry {
+        let message_expiry_secs = match &self.message_expiry_secs {
             None => None,
-            Some(message_expiry) => {
-                let duration: Duration =
-                    *message_expiry.join(" ").parse::<HumanDuration>().unwrap();
+            Some(message_expiry_secs) => {
+                let duration: Duration = *message_expiry_secs
+                    .join(" ")
+                    .parse::<HumanDuration>()
+                    .unwrap();
 
                 Some(duration.as_secs() as u32)
             }
         };
+
+        let max_topic_size_bytes = self.max_topic_size_bytes;
 
         let topic = client
             .create_topic(&CreateTopic {
@@ -102,7 +116,9 @@ impl IggyCmdTestCase for TestTopicUpdateCmd {
                 topic_id: self.topic_id,
                 partitions_count: 1,
                 name: self.topic_name.clone(),
-                message_expiry,
+                message_expiry_secs,
+                max_topic_size_bytes,
+                replication_factor: 1,
             })
             .await;
         assert!(topic.is_ok());
@@ -127,11 +143,13 @@ impl IggyCmdTestCase for TestTopicUpdateCmd {
             TestTopicId::Named => self.topic_name.clone(),
         };
 
-        let message_expiry = match &self.topic_new_message_expiry {
+        let message_expiry_secs = match &self.topic_new_message_expiry_secs {
             None => String::new(),
-            Some(message_expiry) => {
-                let duration: Duration =
-                    *message_expiry.join(" ").parse::<HumanDuration>().unwrap();
+            Some(message_expiry_secs) => {
+                let duration: Duration = *message_expiry_secs
+                    .join(" ")
+                    .parse::<HumanDuration>()
+                    .unwrap();
 
                 format!(" and message expire time: {}", format_duration(duration))
             }
@@ -139,7 +157,7 @@ impl IggyCmdTestCase for TestTopicUpdateCmd {
 
         let expected_message = format!(
             "Executing update topic with ID: {}, name: {}{} in stream with ID: {}\nTopic with ID: {} updated name: {}{} in stream with ID: {}\n",
-            topic_id, self.topic_new_name, message_expiry, stream_id, topic_id, self.topic_new_name, message_expiry, stream_id
+            topic_id, self.topic_new_name, message_expiry_secs, stream_id, topic_id, self.topic_new_name, message_expiry_secs, stream_id
         );
 
         command_state.success().stdout(diff(expected_message));
@@ -158,16 +176,16 @@ impl IggyCmdTestCase for TestTopicUpdateCmd {
         assert_eq!(topic_details.id, self.topic_id);
         assert_eq!(topic_details.messages_count, 0);
 
-        if self.topic_new_message_expiry.is_some() {
+        if self.topic_new_message_expiry_secs.is_some() {
             let duration: Duration = *self
-                .topic_new_message_expiry
+                .topic_new_message_expiry_secs
                 .clone()
                 .unwrap()
                 .join(" ")
                 .parse::<HumanDuration>()
                 .unwrap();
             assert_eq!(
-                topic_details.message_expiry,
+                topic_details.message_expiry_secs,
                 Some(duration.as_secs() as u32)
             );
         }
@@ -202,7 +220,9 @@ pub async fn should_be_successful() {
             1,
             String::from("sync"),
             None,
+            None,
             String::from("new_name"),
+            None,
             None,
             TestStreamId::Numeric,
             TestTopicId::Numeric,
@@ -215,7 +235,9 @@ pub async fn should_be_successful() {
             3,
             String::from("topic"),
             None,
+            None,
             String::from("testing"),
+            None,
             None,
             TestStreamId::Named,
             TestTopicId::Numeric,
@@ -228,7 +250,9 @@ pub async fn should_be_successful() {
             5,
             String::from("development"),
             None,
+            None,
             String::from("development"),
+            None,
             None,
             TestStreamId::Numeric,
             TestTopicId::Named,
@@ -241,6 +265,7 @@ pub async fn should_be_successful() {
             2,
             String::from("probe"),
             None,
+            None,
             String::from("development"),
             Some(vec![
                 String::from("1day"),
@@ -248,6 +273,7 @@ pub async fn should_be_successful() {
                 String::from("1min"),
                 String::from("1sec"),
             ]),
+            None,
             TestStreamId::Numeric,
             TestTopicId::Numeric,
         ))
@@ -259,8 +285,10 @@ pub async fn should_be_successful() {
             1,
             String::from("testing"),
             Some(vec![String::from("1s")]),
+            None,
             String::from("testing"),
             Some(vec![String::from("66sec")]),
+            None,
             TestStreamId::Numeric,
             TestTopicId::Numeric,
         ))
@@ -276,7 +304,9 @@ pub async fn should_be_successful() {
                 String::from("1m"),
                 String::from("1h"),
             ]),
+            None,
             String::from("testing"),
+            None,
             None,
             TestStreamId::Numeric,
             TestTopicId::Named,
@@ -305,7 +335,7 @@ Examples
  iggy update 1 1 new-name
  iggy update 1 2 new-name 1day 1hour 1min 1sec
 
-{USAGE_PREFIX} topic update <STREAM_ID> <TOPIC_ID> <NAME> [MESSAGE_EXPIRY]...
+{USAGE_PREFIX} topic update <STREAM_ID> <TOPIC_ID> <NAME> [MESSAGE_EXPIRY] [MAX_TOPIC_SIZE]...
 
 Arguments:
   <STREAM_ID>

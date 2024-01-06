@@ -6,7 +6,7 @@ use crate::streaming::segments::segment::Segment;
 use crate::streaming::storage::SystemStorage;
 use iggy::consumer::ConsumerKind;
 use iggy::models::messages::Message;
-use iggy::utils::timestamp::TimeStamp;
+use iggy::utils::timestamp::IggyTimestamp;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -24,7 +24,7 @@ pub struct Partition {
     pub unsaved_messages_count: u32,
     pub should_increment_offset: bool,
     pub created_at: u64,
-    pub(crate) message_expiry: Option<u32>,
+    pub(crate) message_expiry_secs: Option<u32>,
     pub(crate) consumer_offsets: RwLock<HashMap<u32, ConsumerOffset>>,
     pub(crate) consumer_group_offsets: RwLock<HashMap<u32, ConsumerOffset>>,
     pub(crate) segments: Vec<Segment>,
@@ -78,7 +78,7 @@ impl Partition {
         with_segment: bool,
         config: Arc<SystemConfig>,
         storage: Arc<SystemStorage>,
-        message_expiry: Option<u32>,
+        message_expiry_secs: Option<u32>,
     ) -> Partition {
         let path = config.get_partition_path(stream_id, topic_id, partition_id);
         let (cached_memory_tracker, messages) = match config.cache.enabled {
@@ -94,7 +94,7 @@ impl Partition {
             topic_id,
             partition_id,
             path,
-            message_expiry,
+            message_expiry_secs,
             cache: messages,
             cached_memory_tracker,
             message_deduplicator: match config.message_deduplication.enabled {
@@ -122,7 +122,7 @@ impl Partition {
             consumer_group_offsets: RwLock::new(HashMap::new()),
             config,
             storage,
-            created_at: TimeStamp::now().to_micros(),
+            created_at: IggyTimestamp::now().to_micros(),
         };
 
         if with_segment {
@@ -133,7 +133,7 @@ impl Partition {
                 0,
                 partition.config.clone(),
                 partition.storage.clone(),
-                partition.message_expiry,
+                partition.message_expiry_secs,
             );
             partition.segments.push(segment);
         }
@@ -165,7 +165,7 @@ mod tests {
         let with_segment = true;
         let config = Arc::new(SystemConfig::default());
         let path = config.get_partition_path(stream_id, topic_id, partition_id);
-        let message_expiry = Some(10);
+        let message_expiry_secs = Some(10);
         let partition = Partition::create(
             stream_id,
             topic_id,
@@ -173,7 +173,7 @@ mod tests {
             with_segment,
             config,
             storage,
-            message_expiry,
+            message_expiry_secs,
         );
 
         assert_eq!(partition.stream_id, stream_id);
@@ -187,7 +187,7 @@ mod tests {
         assert!(!partition.should_increment_offset);
         assert!(partition.cache.as_ref().unwrap().is_empty());
         let consumer_offsets = partition.consumer_offsets.blocking_read();
-        assert_eq!(partition.message_expiry, message_expiry);
+        assert_eq!(partition.message_expiry_secs, message_expiry_secs);
         assert!(consumer_offsets.is_empty());
     }
 

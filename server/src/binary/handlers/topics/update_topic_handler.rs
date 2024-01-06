@@ -20,7 +20,9 @@ pub async fn handle(
             &command.stream_id,
             &command.topic_id,
             &command.name,
-            command.message_expiry,
+            command.message_expiry_secs,
+            command.max_topic_size_bytes,
+            command.replication_factor,
         )
         .await?;
     sender.send_empty_ok_response().await?;

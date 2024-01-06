@@ -89,7 +89,9 @@ pub async fn init_by_producer(args: &Args, client: &dyn Client) -> Result<(), Er
             topic_id: args.topic_id,
             partitions_count: args.partitions_count,
             name: "orders".to_string(),
-            message_expiry: None,
+            message_expiry_secs: None,
+            max_topic_size_bytes: None,
+            replication_factor: 1,
         })
         .await?;
     Ok(())

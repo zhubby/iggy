@@ -209,10 +209,15 @@ async fn extend_topic(topic: &Topic, bytes: &mut Vec<u8>) {
     bytes.put_u32_le(topic.topic_id);
     bytes.put_u64_le(topic.created_at);
     bytes.put_u32_le(topic.get_partitions().len() as u32);
-    match topic.message_expiry {
-        Some(message_expiry) => bytes.put_u32_le(message_expiry),
+    match topic.message_expiry_secs {
+        Some(message_expiry_secs) => bytes.put_u32_le(message_expiry_secs),
         None => bytes.put_u32_le(0),
     };
+    match topic.max_topic_size_bytes {
+        Some(max_topic_size_bytes) => bytes.put_u64_le(max_topic_size_bytes),
+        None => bytes.put_u64_le(0),
+    };
+    bytes.put_u8(topic.replication_factor);
     bytes.put_u64_le(topic.get_size_bytes().await);
     bytes.put_u64_le(topic.get_messages_count().await);
     bytes.put_u8(topic.name.len() as u8);

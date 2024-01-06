@@ -82,6 +82,12 @@ pub(crate) struct TopicCreateArgs {
     /// ("none" or skipping parameter disables message expiry functionality in topic)
     #[arg(value_parser = clap::value_parser!(MessageExpiry))]
     pub(crate) message_expiry: Option<Vec<MessageExpiry>>,
+    /// Max topic size in bytes
+    /// ("none" or skipping parameter disables max topic size functionality in topic)
+    /// Can't be lower than segment size in the config.
+    pub(crate) max_topic_size_bytes: Option<u64>,
+    /// Replication factor for the topic
+    pub(crate) replication_factor: u8,
 }
 
 #[derive(Debug, Clone, Args)]
@@ -116,6 +122,12 @@ pub(crate) struct TopicUpdateArgs {
     /// ("none" or skipping parameter causes removal of expiry parameter in topic)
     #[arg(value_parser = clap::value_parser!(MessageExpiry))]
     pub(crate) message_expiry: Option<Vec<MessageExpiry>>,
+    /// New max topic size in bytes
+    /// ("none" or skipping parameter causes removal of max topic size parameter in topic)
+    /// Can't be lower than segment size in the config.
+    pub(crate) max_topic_size_bytes: Option<u64>,
+    /// New replication factor for the topic
+    pub(crate) replication_factor: u8,
 }
 
 #[derive(Debug, Clone, Args)]

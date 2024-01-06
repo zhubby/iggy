@@ -9,7 +9,7 @@ use tracing::{event, Level};
 
 pub struct CreateTopicCmd {
     create_topic: CreateTopic,
-    message_expiry: Option<MessageExpiry>,
+    message_expiry_secs: Option<MessageExpiry>,
 }
 
 impl CreateTopicCmd {
@@ -18,7 +18,9 @@ impl CreateTopicCmd {
         topic_id: u32,
         partitions_count: u32,
         name: String,
-        message_expiry: Option<MessageExpiry>,
+        message_expiry_secs: Option<MessageExpiry>,
+        max_topic_size_bytes: Option<u64>,
+        replication_factor: u8,
     ) -> Self {
         Self {
             create_topic: CreateTopic {
@@ -26,12 +28,14 @@ impl CreateTopicCmd {
                 topic_id,
                 partitions_count,
                 name,
-                message_expiry: match &message_expiry {
+                message_expiry_secs: match &message_expiry_secs {
                     None => None,
                     Some(value) => value.into(),
                 },
+                max_topic_size_bytes,
+                replication_factor,
             },
-            message_expiry,
+            message_expiry_secs,
         }
     }
 }
@@ -39,7 +43,7 @@ impl CreateTopicCmd {
 #[async_trait]
 impl CliCommand for CreateTopicCmd {
     fn explain(&self) -> String {
-        let expiry_text = match &self.message_expiry {
+        let expiry_text = match &self.message_expiry_secs {
             Some(value) => format!("message expire time: {}", value),
             None => String::from("without message expire time"),
         };
@@ -69,7 +73,7 @@ impl CliCommand for CreateTopicCmd {
             self.create_topic.topic_id,
             self.create_topic.name,
             self.create_topic.partitions_count,
-            match &self.message_expiry {
+            match &self.message_expiry_secs{
                 Some(value) => format!("message expire time: {}", value),
                 None => String::from("without message expire time"),
             },

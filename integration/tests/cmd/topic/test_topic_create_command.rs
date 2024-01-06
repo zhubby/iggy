@@ -19,7 +19,7 @@ struct TestTopicCreateCmd {
     topic_id: u32,
     topic_name: String,
     partitions_count: u32,
-    message_expiry: Option<Vec<String>>,
+    message_expiry_secs: Option<Vec<String>>,
     using_identifier: TestStreamId,
 }
 
@@ -30,7 +30,7 @@ impl TestTopicCreateCmd {
         topic_id: u32,
         topic_name: String,
         partitions_count: u32,
-        message_expiry: Option<Vec<String>>,
+        message_expiry_secs: Option<Vec<String>>,
         using_identifier: TestStreamId,
     ) -> Self {
         Self {
@@ -39,7 +39,7 @@ impl TestTopicCreateCmd {
             topic_id,
             topic_name,
             partitions_count,
-            message_expiry,
+            message_expiry_secs,
             using_identifier,
         }
     }
@@ -53,7 +53,7 @@ impl TestTopicCreateCmd {
         command.push(format!("{}", self.topic_id));
         command.push(format!("{}", self.partitions_count));
         command.push(self.topic_name.clone());
-        command.extend(self.message_expiry.clone().unwrap_or_default());
+        command.extend(self.message_expiry_secs.clone().unwrap_or_default());
 
         command
     }
@@ -80,10 +80,12 @@ impl IggyCmdTestCase for TestTopicCreateCmd {
     }
 
     fn verify_command(&self, command_state: Assert) {
-        let message_expiry_text = match self.message_expiry {
-            Some(ref message_expiry) => {
-                let duration: Duration =
-                    *message_expiry.join(" ").parse::<HumanDuration>().unwrap();
+        let message_expiry_text = match self.message_expiry_secs {
+            Some(ref message_expiry_secs) => {
+                let duration: Duration = *message_expiry_secs
+                    .join(" ")
+                    .parse::<HumanDuration>()
+                    .unwrap();
 
                 format!("and message expire time: {}", format_duration(duration))
             }
@@ -115,16 +117,16 @@ impl IggyCmdTestCase for TestTopicCreateCmd {
         assert_eq!(topic_details.partitions_count, self.partitions_count);
         assert_eq!(topic_details.messages_count, 0);
 
-        if self.message_expiry.is_some() {
+        if self.message_expiry_secs.is_some() {
             let duration: Duration = *self
-                .message_expiry
+                .message_expiry_secs
                 .clone()
                 .unwrap()
                 .join(" ")
                 .parse::<HumanDuration>()
                 .unwrap();
             assert_eq!(
-                topic_details.message_expiry,
+                topic_details.message_expiry_secs,
                 Some(duration.as_secs() as u32)
             );
         }

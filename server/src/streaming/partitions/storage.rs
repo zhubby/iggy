@@ -211,7 +211,7 @@ impl Storage<Partition> for FilePartitionStorage {
                 start_offset,
                 partition.config.clone(),
                 partition.storage.clone(),
-                partition.message_expiry,
+                partition.message_expiry_secs,
             );
             segment.load().await?;
             if !segment.is_closed {

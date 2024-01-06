@@ -425,7 +425,10 @@ impl FromStr for Command {
             LEAVE_CONSUMER_GROUP => Ok(Command::LeaveConsumerGroup(LeaveConsumerGroup::from_str(
                 payload,
             )?)),
-            _ => Err(Error::InvalidCommand),
+            _ => {
+                println!("invalid command: {}", input);
+                Err(Error::InvalidCommand)
+            }
         }
     }
 }
@@ -975,6 +978,7 @@ mod tests {
     ) {
         let payload = payload.to_string();
         let mut string = String::with_capacity(command_name.len() + payload.len());
+        println!("{:?}, {:?}, {}", command_name, command_name.len(), payload);
         string.push_str(command_name);
         if !payload.is_empty() {
             string.push('|');

@@ -45,7 +45,7 @@ impl Partition {
             start_offset,
             self.config.clone(),
             self.storage.clone(),
-            self.message_expiry,
+            self.message_expiry_secs,
         );
         new_segment.persist().await?;
         self.segments.push(new_segment);

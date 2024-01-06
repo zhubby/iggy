@@ -15,7 +15,9 @@ impl Stream {
         id: u32,
         name: &str,
         partitions_count: u32,
-        message_expiry: Option<u32>,
+        message_expiry_secs: Option<u32>,
+        max_topic_size_bytes: Option<u64>,
+        replication_factor: u8,
     ) -> Result<(), Error> {
         if self.topics.contains_key(&id) {
             return Err(Error::TopicIdAlreadyExists(id, self.stream_id));
@@ -26,6 +28,8 @@ impl Stream {
             return Err(Error::TopicNameAlreadyExists(name, self.stream_id));
         }
 
+        // TODO: check if max_topic_size_bytes is not lower than system.segment.size
+
         let topic = Topic::create(
             self.stream_id,
             id,
@@ -33,13 +37,12 @@ impl Stream {
             partitions_count,
             self.config.clone(),
             self.storage.clone(),
-            message_expiry,
+            message_expiry_secs,
+            max_topic_size_bytes,
+            replication_factor,
         )?;
         topic.persist().await?;
-        info!(
-            "Created topic: {} with ID: {}, partitions: {}",
-            name, id, partitions_count
-        );
+        info!("Created topic {}", topic);
         self.topics_ids.insert(name, id);
         self.topics.insert(id, topic);
 
@@ -50,7 +53,9 @@ impl Stream {
         &mut self,
         id: &Identifier,
         name: &str,
-        message_expiry: Option<u32>,
+        message_expiry_secs: Option<u32>,
+        max_topic_size_bytes: Option<u64>,
+        replication_factor: u8,
     ) -> Result<(), Error> {
         let topic_id;
         {
@@ -81,17 +86,19 @@ impl Stream {
             self.topics_ids.insert(updated_name.clone(), topic_id);
             let topic = self.get_topic_mut(id)?;
             topic.name = updated_name;
-            topic.message_expiry = message_expiry;
+            topic.message_expiry_secs = message_expiry_secs;
             for partition in topic.partitions.values_mut() {
                 let mut partition = partition.write().await;
-                partition.message_expiry = message_expiry;
+                partition.message_expiry_secs = message_expiry_secs;
                 for segment in partition.segments.iter_mut() {
-                    segment.message_expiry = message_expiry;
+                    segment.message_expiry_secs = message_expiry_secs;
                 }
             }
+            topic.max_topic_size_bytes = max_topic_size_bytes;
+            topic.replication_factor = replication_factor;
 
             topic.persist().await?;
-            info!("Updated topic: {} with ID: {}", topic.name, id);
+            info!("Updated topic: {}", topic);
         }
 
         Ok(())
@@ -183,12 +190,20 @@ mod tests {
         let stream_name = "test_stream";
         let topic_id = 2;
         let topic_name = "test_topic";
-        let message_expiry = Some(10);
+        let message_expiry_secs = Some(10);
+        let max_topic_size_bytes = Some(100);
         let config = Arc::new(SystemConfig::default());
         let storage = Arc::new(get_test_system_storage());
         let mut stream = Stream::create(stream_id, stream_name, config, storage);
         stream
-            .create_topic(topic_id, topic_name, 1, message_expiry)
+            .create_topic(
+                topic_id,
+                topic_name,
+                1,
+                message_expiry_secs,
+                max_topic_size_bytes,
+                1,
+            )
             .await
             .unwrap();
 

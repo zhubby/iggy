@@ -3,7 +3,7 @@ use crate::streaming::segments::index::Index;
 use crate::streaming::segments::time_index::TimeIndex;
 use crate::streaming::storage::SystemStorage;
 use iggy::models::messages::Message;
-use iggy::utils::timestamp::TimeStamp;
+use iggy::utils::timestamp::IggyTimestamp;
 use std::sync::Arc;
 
 pub const LOG_EXTENSION: &str = "log";
@@ -24,7 +24,7 @@ pub struct Segment {
     pub time_index_path: String,
     pub current_size_bytes: u32,
     pub is_closed: bool,
-    pub(crate) message_expiry: Option<u32>,
+    pub(crate) message_expiry_secs: Option<u32>,
     pub(crate) unsaved_messages: Option<Vec<Arc<Message>>>,
     pub(crate) config: Arc<SystemConfig>,
     pub(crate) indexes: Option<Vec<Index>>,
@@ -40,7 +40,7 @@ impl Segment {
         start_offset: u64,
         config: Arc<SystemConfig>,
         storage: Arc<SystemStorage>,
-        message_expiry: Option<u32>,
+        message_expiry_secs: Option<u32>,
     ) -> Segment {
         let path = config.get_segment_path(stream_id, topic_id, partition_id, start_offset);
 
@@ -55,7 +55,7 @@ impl Segment {
             index_path: Self::get_index_path(&path),
             time_index_path: Self::get_time_index_path(&path),
             current_size_bytes: 0,
-            message_expiry,
+            message_expiry_secs,
             indexes: match config.segment.cache_indexes {
                 true => Some(Vec::new()),
                 false => None,
@@ -76,11 +76,11 @@ impl Segment {
             return true;
         }
 
-        self.is_expired(TimeStamp::now().to_micros()).await
+        self.is_expired(IggyTimestamp::now().to_micros()).await
     }
 
     pub async fn is_expired(&self, now: u64) -> bool {
-        if self.message_expiry.is_none() {
+        if self.message_expiry_secs.is_none() {
             return false;
         }
 
@@ -95,8 +95,8 @@ impl Segment {
         }
 
         let last_message = last_messages[0].as_ref();
-        let message_expiry = (self.message_expiry.unwrap() * 1000) as u64;
-        (last_message.timestamp + message_expiry) <= now
+        let message_expiry_secs = (self.message_expiry_secs.unwrap() * 1000) as u64;
+        (last_message.timestamp + message_expiry_secs) <= now
     }
 
     fn get_log_path(path: &str) -> String {
@@ -130,7 +130,7 @@ mod tests {
         let log_path = Segment::get_log_path(&path);
         let index_path = Segment::get_index_path(&path);
         let time_index_path = Segment::get_time_index_path(&path);
-        let message_expiry = Some(10);
+        let message_expiry_secs = Some(10);
 
         let segment = Segment::create(
             stream_id,
@@ -139,7 +139,7 @@ mod tests {
             start_offset,
             config,
             storage,
-            message_expiry,
+            message_expiry_secs,
         );
 
         assert_eq!(segment.stream_id, stream_id);
@@ -152,7 +152,7 @@ mod tests {
         assert_eq!(segment.log_path, log_path);
         assert_eq!(segment.index_path, index_path);
         assert_eq!(segment.time_index_path, time_index_path);
-        assert_eq!(segment.message_expiry, message_expiry);
+        assert_eq!(segment.message_expiry_secs, message_expiry_secs);
         assert!(segment.unsaved_messages.is_none());
         assert!(segment.indexes.is_some());
         assert!(segment.time_indexes.is_some());

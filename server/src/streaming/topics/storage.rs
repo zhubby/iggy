@@ -71,10 +71,7 @@ impl TopicStorage for FileTopicStorage {
     }
 
     async fn load_consumer_groups(&self, topic: &Topic) -> Result<Vec<ConsumerGroup>, Error> {
-        info!(
-            "Loading consumer groups for topic with ID: {} for stream with ID: {} from disk...",
-            topic.topic_id, topic.stream_id
-        );
+        info!("Loading consumer groups for topic {} from disk...", topic);
 
         let key_prefix = get_consumer_groups_key_prefix(topic.stream_id, topic.topic_id);
         let mut consumer_groups = Vec::new();
@@ -146,16 +143,14 @@ impl TopicStorage for FileTopicStorage {
 struct TopicData {
     name: String,
     created_at: u64,
-    message_expiry: Option<u32>,
+    message_expiry_secs: Option<u32>,
+    max_topic_size_bytes: Option<u64>,
 }
 
 #[async_trait]
 impl Storage<Topic> for FileTopicStorage {
     async fn load(&self, topic: &mut Topic) -> Result<(), Error> {
-        info!(
-            "Loading topic with ID: {} for stream with ID: {} from disk...",
-            topic.topic_id, topic.stream_id
-        );
+        info!("Loading topic {} from disk...", topic);
         if !Path::new(&topic.path).exists() {
             return Err(Error::TopicIdNotFound(topic.topic_id, topic.stream_id));
         }
@@ -186,10 +181,11 @@ impl Storage<Topic> for FileTopicStorage {
 
         topic.name = topic_data.name;
         topic.created_at = topic_data.created_at;
-        topic.message_expiry = topic_data.message_expiry;
+        topic.message_expiry_secs = topic_data.message_expiry_secs;
+        topic.max_topic_size_bytes = topic_data.max_topic_size_bytes;
 
         let dir_entries = fs::read_dir(&topic.partitions_path).await
-            .with_context(|| format!("Failed to read partition with ID: {} for stream with ID: {} for topic with ID: {} and path: {}", 
+            .with_context(|| format!("Failed to read partition with ID: {} for stream with ID: {} for topic with ID: {} and path: {}",
             topic.topic_id, topic.stream_id, topic.topic_id, &topic.partitions_path));
         if let Err(err) = dir_entries {
             return Err(Error::CannotReadPartitions(err));
@@ -218,7 +214,7 @@ impl Storage<Topic> for FileTopicStorage {
                 false,
                 topic.config.clone(),
                 topic.storage.clone(),
-                topic.message_expiry,
+                topic.message_expiry_secs,
             );
             unloaded_partitions.push(partition);
         }
@@ -254,10 +250,7 @@ impl Storage<Topic> for FileTopicStorage {
         self.load_consumer_groups(topic).await?;
         topic.load_messages_from_disk_to_cache().await?;
 
-        info!(
-            "Loaded topic: '{}' with ID: {} for stream with ID: {} from disk. Message expiry: {:?}",
-            &topic.name, &topic.topic_id, topic.stream_id, topic.message_expiry
-        );
+        info!("Loaded topic {}", topic);
 
         Ok(())
     }
@@ -284,7 +277,8 @@ impl Storage<Topic> for FileTopicStorage {
         match rmp_serde::to_vec(&TopicData {
             name: topic.name.clone(),
             created_at: topic.created_at,
-            message_expiry: topic.message_expiry,
+            message_expiry_secs: topic.message_expiry_secs,
+            max_topic_size_bytes: topic.max_topic_size_bytes,
         })
         .with_context(|| format!("Failed to serialize topic with key: {}", key))
         {
@@ -303,31 +297,23 @@ impl Storage<Topic> for FileTopicStorage {
         }
 
         info!(
-            "Saving {} partition(s) for topic with ID: {} and stream with ID: {}...",
+            "Saving {} partition(s) for topic {}...",
             topic.partitions.len(),
-            topic.topic_id,
-            topic.stream_id
+            topic
         );
         for (_, partition) in topic.partitions.iter() {
             let partition = partition.write().await;
             partition.persist().await?;
         }
 
-        info!(
-            "Saved topic with ID: {} for stream with ID: {}, path: {}",
-            topic.topic_id, topic.stream_id, topic.path
-        );
+        info!("Saved topic {}", topic);
 
         Ok(())
     }
 
     async fn delete(&self, topic: &Topic) -> Result<(), Error> {
-        info!(
-            "Deleting topic with ID: {} for stream with ID: {}...",
-            topic.topic_id, topic.stream_id
-        );
+        info!("Deleting topic {}...", topic);
         let key = get_topic_key(topic.stream_id, topic.topic_id);
-        //I END HERE
         if let Err(err) = self
             .db
             .remove(&key)

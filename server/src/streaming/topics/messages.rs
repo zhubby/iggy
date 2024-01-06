@@ -239,7 +239,7 @@ impl Topic {
         now: u64,
     ) -> HashMap<u32, Vec<u64>> {
         let mut expired_segments = HashMap::new();
-        if self.message_expiry.is_none() {
+        if self.message_expiry_secs.is_none() {
             return expired_segments;
         }
 
@@ -382,6 +382,17 @@ mod tests {
         let name = "test";
         let config = Arc::new(SystemConfig::default());
 
-        Topic::create(stream_id, id, name, partitions_count, config, storage, None).unwrap()
+        Topic::create(
+            stream_id,
+            id,
+            name,
+            partitions_count,
+            config,
+            storage,
+            None,
+            None,
+            1,
+        )
+        .unwrap()
     }
 }

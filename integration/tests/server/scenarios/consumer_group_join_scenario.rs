@@ -45,7 +45,9 @@ pub async fn run(client_factory: &dyn ClientFactory) {
         topic_id: TOPIC_ID,
         partitions_count: PARTITIONS_COUNT,
         name: TOPIC_NAME.to_string(),
-        message_expiry: None,
+        message_expiry_secs: None,
+        max_topic_size_bytes: None,
+        replication_factor: 1,
     };
     system_client.create_topic(&create_topic).await.unwrap();
 

@@ -130,7 +130,9 @@ pub async fn run(client_factory: &dyn ClientFactory) {
         topic_id: TOPIC_ID,
         partitions_count: PARTITIONS_COUNT,
         name: TOPIC_NAME.to_string(),
-        message_expiry: None,
+        message_expiry_secs: None,
+        max_topic_size_bytes: Some(0),
+        replication_factor: 1,
     };
     client.create_topic(&create_topic).await.unwrap();
 
@@ -148,7 +150,9 @@ pub async fn run(client_factory: &dyn ClientFactory) {
     assert_eq!(topic.partitions_count, PARTITIONS_COUNT);
     assert_eq!(topic.size_bytes, 0);
     assert_eq!(topic.messages_count, 0);
-    assert_eq!(topic.message_expiry, None);
+    assert_eq!(topic.message_expiry_secs, None);
+    assert_eq!(topic.max_topic_size_bytes, None);
+    assert_eq!(topic.replication_factor, 1);
 
     // 11. Get topic details by ID
     let topic = client
@@ -580,14 +584,18 @@ pub async fn run(client_factory: &dyn ClientFactory) {
 
     // 36. Update the existing topic and ensure it's updated
     let updated_topic_name = format!("{}-updated", TOPIC_NAME);
-    let updated_message_expiry = 1000;
+    let updated_message_expiry_secs = 1000;
+    let updated_max_topic_size_bytes = 0x1337;
+    let updated_replication_factor = 5;
 
     client
         .update_topic(&UpdateTopic {
             stream_id: Identifier::numeric(STREAM_ID).unwrap(),
             topic_id: Identifier::numeric(TOPIC_ID).unwrap(),
             name: updated_topic_name.clone(),
-            message_expiry: Some(updated_message_expiry),
+            message_expiry_secs: Some(updated_message_expiry_secs),
+            max_topic_size_bytes: Some(updated_max_topic_size_bytes),
+            replication_factor: updated_replication_factor,
         })
         .await
         .unwrap();
@@ -601,7 +609,15 @@ pub async fn run(client_factory: &dyn ClientFactory) {
         .unwrap();
 
     assert_eq!(updated_topic.name, updated_topic_name);
-    assert_eq!(updated_topic.message_expiry, Some(updated_message_expiry));
+    assert_eq!(
+        updated_topic.message_expiry_secs,
+        Some(updated_message_expiry_secs)
+    );
+    assert_eq!(
+        updated_topic.max_topic_size_bytes,
+        Some(updated_max_topic_size_bytes)
+    );
+    assert_eq!(updated_topic.replication_factor, updated_replication_factor);
 
     // 37. Purge the existing topic and ensure it has no messages
     client

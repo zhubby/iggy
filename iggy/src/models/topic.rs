@@ -7,7 +7,9 @@ use serde::{Deserialize, Serialize};
 /// - `created_at`: the timestamp when the topic was created.
 /// - `name`: the unique name of the topic.
 /// - `size_bytes`: the total size of the topic in bytes.
-/// - `message_expiry`: the optional expiry of the messages in the topic.
+/// - `message_expiry_secs`: the optional expiry of the messages in the topic in seconds.
+/// - `max_topic_size_bytes`: the optional maximum size of the topic in bytes.
+/// - `replication_factor`: replication factor for the topic.
 /// - `messages_count`: the total number of messages in the topic.
 /// - `partitions_count`: the total number of partitions in the topic.
 #[derive(Debug, Serialize, Deserialize)]
@@ -20,8 +22,12 @@ pub struct Topic {
     pub name: String,
     /// The total size of the topic in bytes.
     pub size_bytes: u64,
-    /// The optional expiry of the messages in the topic.
-    pub message_expiry: Option<u32>,
+    /// The optional expiry of the messages in the topic in seconds.
+    pub message_expiry_secs: Option<u32>,
+    /// The optional maximum size of the topic in bytes.
+    pub max_topic_size_bytes: Option<u64>,
+    /// Replication factor for the topic.
+    pub replication_factor: u8,
     /// The total number of messages in the topic.
     pub messages_count: u64,
     /// The total number of partitions in the topic.
@@ -34,7 +40,9 @@ pub struct Topic {
 /// - `created_at`: the timestamp when the topic was created.
 /// - `name`: the unique name of the topic.
 /// - `size_bytes`: the total size of the topic in bytes.
-/// - `message_expiry`: the optional expiry of the messages in the topic.
+/// - `message_expiry_secs`: the optional expiry of the messages in the topic in seconds.
+/// - `max_topic_size_bytes`: the optional maximum size of the topic in bytes.
+/// - `replication_factor`: replication factor for the topic.
 /// - `messages_count`: the total number of messages in the topic.
 /// - `partitions_count`: the total number of partitions in the topic.
 /// - `partitions`: the collection of partitions in the topic.
@@ -49,7 +57,12 @@ pub struct TopicDetails {
     /// The total size of the topic in bytes.
     pub size_bytes: u64,
     /// The optional expiry of the messages in the topic.
-    pub message_expiry: Option<u32>,
+    pub message_expiry_secs: Option<u32>,
+    /// The optional maximum size of the topic in bytes.
+    /// Can't be lower than segment size in the config.
+    pub max_topic_size_bytes: Option<u64>,
+    /// Replication factor for the topic.
+    pub replication_factor: u8,
     /// The total number of messages in the topic.
     pub messages_count: u64,
     /// The total number of partitions in the topic.

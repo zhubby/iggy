@@ -79,7 +79,9 @@ async fn create_topic(
             command.topic_id,
             &command.name,
             command.partitions_count,
-            command.message_expiry,
+            command.message_expiry_secs,
+            command.max_topic_size_bytes,
+            command.replication_factor,
         )
         .await?;
     Ok(StatusCode::CREATED)
@@ -101,7 +103,9 @@ async fn update_topic(
             &command.stream_id,
             &command.topic_id,
             &command.name,
-            command.message_expiry,
+            command.message_expiry_secs,
+            command.max_topic_size_bytes,
+            command.replication_factor,
         )
         .await?;
     Ok(StatusCode::NO_CONTENT)

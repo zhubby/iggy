@@ -31,6 +31,7 @@ impl System {
         Ok(stream.get_topics())
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn create_topic(
         &mut self,
         session: &Session,
@@ -38,7 +39,9 @@ impl System {
         topic_id: u32,
         name: &str,
         partitions_count: u32,
-        message_expiry: Option<u32>,
+        message_expiry_secs: Option<u32>,
+        max_topic_size_bytes: Option<u64>,
+        replication_factor: u8,
     ) -> Result<(), Error> {
         self.ensure_authenticated(session)?;
         {
@@ -48,7 +51,14 @@ impl System {
         }
 
         self.get_stream_mut(stream_id)?
-            .create_topic(topic_id, name, partitions_count, message_expiry)
+            .create_topic(
+                topic_id,
+                name,
+                partitions_count,
+                message_expiry_secs,
+                max_topic_size_bytes,
+                replication_factor,
+            )
             .await?;
         self.metrics.increment_topics(1);
         self.metrics.increment_partitions(partitions_count);
@@ -56,13 +66,16 @@ impl System {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn update_topic(
         &mut self,
         session: &Session,
         stream_id: &Identifier,
         topic_id: &Identifier,
         name: &str,
-        message_expiry: Option<u32>,
+        message_expiry_secs: Option<u32>,
+        max_topic_size_bytes: Option<u64>,
+        replication_factor: u8,
     ) -> Result<(), Error> {
         self.ensure_authenticated(session)?;
         {
@@ -73,8 +86,18 @@ impl System {
         }
 
         self.get_stream_mut(stream_id)?
-            .update_topic(topic_id, name, message_expiry)
+            .update_topic(
+                topic_id,
+                name,
+                message_expiry_secs,
+                max_topic_size_bytes,
+                replication_factor,
+            )
             .await?;
+
+        // TODO: if message_expiry_secs is changed, we need to check if we need to purge messages based on the new expiry
+        // TODO: if max_size_bytes is changed, we need to check if we need to purge messages based on the new size
+        // TODO: if replication_factor is changed, we need to do `something`
         Ok(())
     }
 

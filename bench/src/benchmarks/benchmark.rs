@@ -84,7 +84,9 @@ pub trait Benchmarkable {
                         topic_id,
                         partitions_count,
                         name,
-                        message_expiry: None,
+                        message_expiry_secs: None,
+                        max_topic_size_bytes: None,
+                        replication_factor: 1,
                     })
                     .await?;
             }

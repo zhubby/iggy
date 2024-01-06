@@ -157,8 +157,9 @@ impl Display for RetentionPolicyConfig {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{{ message_expiry: {}, max_topic_size: {} }}",
-            self.message_expiry, self.max_topic_size
+            "{{ message_expiry: {}, max_topic_size: {}}}",
+            self.message_expiry.as_secs(),
+            self.max_topic_size
         )
     }
 }

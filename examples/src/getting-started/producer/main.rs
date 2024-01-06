@@ -50,7 +50,9 @@ async fn init_system(client: &IggyClient) {
             topic_id: TOPIC_ID,
             partitions_count: 1,
             name: "sample-topic".to_string(),
-            message_expiry: None,
+            message_expiry_secs: None,
+            max_topic_size_bytes: None,
+            replication_factor: 1,
         })
         .await
     {

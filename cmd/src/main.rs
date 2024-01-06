@@ -72,6 +72,8 @@ fn get_command(command: Command, args: &IggyConsoleArgs) -> Box<dyn CliCommand> 
                 args.partitions_count,
                 args.name.clone(),
                 MessageExpiry::new(args.message_expiry.clone()),
+                args.max_topic_size_bytes,
+                args.replication_factor,
             )),
             TopicAction::Delete(args) => Box::new(DeleteTopicCmd::new(
                 args.stream_id.clone(),
@@ -82,6 +84,8 @@ fn get_command(command: Command, args: &IggyConsoleArgs) -> Box<dyn CliCommand> 
                 args.topic_id.clone(),
                 args.name.clone(),
                 MessageExpiry::new(args.message_expiry.clone()),
+                args.max_topic_size_bytes,
+                args.replication_factor,
             )),
             TopicAction::Get(args) => Box::new(GetTopicCmd::new(
                 args.stream_id.clone(),

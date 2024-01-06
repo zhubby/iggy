@@ -72,7 +72,9 @@ impl IggyCmdTestCase for TestTopicGetCmd {
                 topic_id: self.topic_id,
                 partitions_count: 1,
                 name: self.topic_name.clone(),
-                message_expiry: None,
+                message_expiry_secs: None,
+                max_topic_size_bytes: None,
+                replication_factor: 1,
             })
             .await;
         assert!(topic.is_ok());
