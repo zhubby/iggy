@@ -17,11 +17,11 @@ pub struct Segment {
     pub stream_id: u32,
     pub topic_id: u32,
     pub partition_id: u32,
-    // TODO (numinex): turn this to start_offset_delta
     pub start_offset: u64,
     // TODO (numinex): turn this to end_offset_delta
     pub end_offset: u64,
     pub current_offset: u64,
+    pub current_timestamp: u64,
     pub index_path: String,
     pub log_path: String,
     pub time_index_path: String,
@@ -55,6 +55,7 @@ impl Segment {
             start_offset,
             end_offset: 0,
             current_offset: start_offset,
+            current_timestamp: 0,
             log_path: Self::get_log_path(&path),
             index_path: Self::get_index_path(&path),
             time_index_path: Self::get_time_index_path(&path),

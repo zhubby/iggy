@@ -1,3 +1,4 @@
+use std::cmp::max;
 use crate::streaming::batching::messages_batch::{MessagesBatch, MessagesBatchAttributes};
 use crate::streaming::partitions::partition::Partition;
 use crate::streaming::polling_consumer::PollingConsumer;
@@ -10,6 +11,7 @@ use iggy::models::messages::Message;
 use iggy::utils::crypto::Encryptor;
 use std::sync::Arc;
 use tracing::{trace, warn};
+use crate::streaming::segments::time_index::TimeIndex;
 
 const EMPTY_MESSAGES: Vec<Message> = vec![];
 
@@ -116,8 +118,7 @@ impl Partition {
         }
          */
 
-        let segments = self.find_segments_within_offset(start_offset, end_offset);
-        //let segments = self.filter_segments_by_offsets(start_offset, end_offset);
+        let segments = self.filter_segments_by_offsets(start_offset, end_offset);
         match segments.len() {
             0 => Ok(EMPTY_MESSAGES),
             1 => segments[0].get_messages(start_offset, count).await,
@@ -197,18 +198,7 @@ impl Partition {
         end_offset
     }
 
-    fn filter_segments_by_offsets(&self, offset: u64, end_offset: u64) -> Vec<&Segment> {
-        self.segments
-            .iter()
-            .filter(|segment| {
-                (segment.start_offset >= offset && segment.current_offset <= end_offset)
-                    || (segment.start_offset <= offset && segment.current_offset >= offset)
-                    || (segment.start_offset <= end_offset && segment.current_offset >= end_offset)
-            })
-            .collect::<Vec<&Segment>>()
-    }
-
-    fn find_segments_within_offset(&self, start_offset: u64, end_offset: u64) -> Vec<&Segment> {
+    fn filter_segments_by_offsets(&self, start_offset: u64, end_offset: u64) -> Vec<&Segment> {
         let slice_start = self
             .segments
             .iter()
@@ -393,11 +383,14 @@ impl Partition {
             self.current_offset + 1
         };
 
-        // lets keep it like that for now, in the future when producer side compression
+        // TODO(numinex) - lets keep it like that for now, in the future when producer side compression
         // is implemented will change this to offset_delta (u32 instead of u64)
         let mut curr_offset = begin_offset;
+        // assume that messages have monotonic timestamps
+        let mut max_timestamp = 0;
         for message in &mut messages {
             message.offset = curr_offset;
+            max_timestamp = message.timestamp;
             curr_offset += 1;
         }
 
@@ -420,15 +413,8 @@ impl Partition {
         )?;
         {
             let last_segment = self.segments.last_mut().ok_or(Error::SegmentNotFound)?;
-            last_segment.append_messages(batch, last_offset).await?;
+            last_segment.append_messages(batch, last_offset, max_timestamp).await?;
         }
-        /*
-        let messages = messages.into_iter().map(Arc::new).collect::<Vec<_>>();
-        {
-            let last_segment = self.segments.last_mut().ok_or(Error::SegmentNotFound)?;
-            last_segment.append_messages(&messages).await?;
-        }
-        */
 
         /*
         if let Some(cache) = &mut self.cache {

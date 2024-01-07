@@ -6,7 +6,6 @@ use iggy::compression::compressor::{Compressor, GzCompressor};
 use iggy::error::Error;
 use iggy::models::messages::{Message, MessageState};
 use std::collections::HashMap;
-use tracing::warn;
 
 /*
  Attributes Byte Structure:

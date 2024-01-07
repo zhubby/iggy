@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use crate::streaming::batching::messages_batch::MessagesBatch;
 use crate::streaming::segments::index::{Index, IndexRange};
 use crate::streaming::segments::segment::Segment;
@@ -190,6 +191,7 @@ impl Segment {
         &mut self,
         messages: MessagesBatch,
         last_message_offset: u64,
+        max_timestamp: u64,
     ) -> Result<(), Error> {
         if self.is_closed {
             return Err(Error::SegmentClosed(self.start_offset, self.partition_id));
@@ -205,8 +207,12 @@ impl Segment {
             time_indexes.reserve(1);
         }
 
+        if max_timestamp > self.current_timestamp {
+            self.current_timestamp = max_timestamp;
+        }
+
         // For now ignoring timestamp index, need to calculate max_timestamp first.
-        self.store_offset_and_timestamp_index_for_batch(last_message_offset);
+        self.store_offset_and_timestamp_index_for_batch(last_message_offset, self.current_timestamp);
         let batch_size = messages.get_size_bytes();
 
         let unsaved_messages = self.unsaved_messages.get_or_insert_with(Vec::new);
@@ -270,7 +276,7 @@ impl Segment {
         */
         Ok(())
     }
-    fn store_offset_and_timestamp_index_for_batch(&mut self, batch_last_offset: u64) {
+    fn store_offset_and_timestamp_index_for_batch(&mut self, batch_last_offset: u64, batch_max_timestamp: u64) {
         let relative_offset = (batch_last_offset - self.start_offset) as u32;
         match (&mut self.indexes, &mut self.time_indexes) {
             (Some(indexes), Some(time_indexes)) => {
