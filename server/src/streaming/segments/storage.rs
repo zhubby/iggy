@@ -484,16 +484,11 @@ impl SegmentStorage for FileSegmentStorage {
     async fn save_time_index(
         &self,
         segment: &Segment,
-        messages: &[Arc<Message>],
     ) -> Result<(), Error> {
-        let mut bytes = Vec::with_capacity(messages.len() * 8);
-        for message in messages {
-            bytes.put_u64_le(message.timestamp);
-        }
 
         if let Err(err) = self
             .persister
-            .append(&segment.time_index_path, &bytes)
+            .append(&segment.time_index_path, &segment.unsaved_timestamps)
             .await
             .with_context(|| {
                 format!(

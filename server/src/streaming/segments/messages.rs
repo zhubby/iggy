@@ -284,12 +284,10 @@ impl Segment {
                     relative_offset,
                     position: self.current_size_bytes,
                 });
-                /*
                 time_indexes.push(TimeIndex {
                     relative_offset,
-                    timestamp: message.timestamp,
+                    timestamp: batch_max_timestamp 
                 });
-                 */
             }
             (Some(indexes), None) => {
                 indexes.push(Index {
@@ -298,12 +296,10 @@ impl Segment {
                 });
             }
             (None, Some(time_indexes)) => {
-                /*
                 time_indexes.push(TimeIndex {
                     relative_offset,
-                    timestamp: message.timestamp,
+                    timestamp: batch_max_timestamp,
                 });
-                 */
             }
             (None, None) => {}
         };
@@ -312,6 +308,8 @@ impl Segment {
         // store them in the unsaved buffer
         self.unsaved_indexes.put_u32_le(relative_offset);
         self.unsaved_indexes.put_u32_le(self.current_size_bytes);
+        self.unsaved_timestamps.put_u32_le(relative_offset);
+        self.unsaved_timestamps.put_u64_le(batch_max_timestamp);
     }
 
     pub async fn persist_messages(
@@ -339,8 +337,8 @@ impl Segment {
 
         storage.save_index(&self).await?;
         self.unsaved_indexes.clear();
-
-        //storage.save_time_index(self, unsaved_messages).await?;
+        storage.save_time_index(&self).await?;
+        self.unsaved_timestamps.clear();
         trace!(
             "Saved {} messages on disk in segment with start offset: {} for partition with ID: {}, total bytes written: {}.",
             unsaved_messages.len(),

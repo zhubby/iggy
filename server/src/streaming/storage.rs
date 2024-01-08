@@ -123,7 +123,6 @@ pub trait SegmentStorage: Storage<Segment> {
     async fn save_time_index(
         &self,
         segment: &Segment,
-        messages: &[Arc<Message>],
     ) -> Result<(), Error>;
 }
 
@@ -486,7 +485,6 @@ pub(crate) mod tests {
         async fn save_time_index(
             &self,
             _segment: &Segment,
-            _messages: &[Arc<Message>],
         ) -> Result<(), Error> {
             Ok(())
         }

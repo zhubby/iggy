@@ -32,6 +32,7 @@ pub struct Segment {
     pub(crate) config: Arc<SystemConfig>,
     pub(crate) indexes: Option<Vec<Index>>,
     pub(crate) unsaved_indexes: Vec<u8>,
+    pub(crate) unsaved_timestamps: Vec<u8>,
     pub(crate) time_indexes: Option<Vec<TimeIndex>>,
     pub(crate) storage: Arc<SystemStorage>,
 }
@@ -70,6 +71,7 @@ impl Segment {
                 true => Some(Vec::new()),
                 false => None,
             },
+            unsaved_timestamps: Vec::with_capacity(1024),
             unsaved_messages: None,
             is_closed: false,
             config,
