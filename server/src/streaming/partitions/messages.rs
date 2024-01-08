@@ -1,17 +1,17 @@
-use std::cmp::max;
 use crate::streaming::batching::messages_batch::{MessagesBatch, MessagesBatchAttributes};
 use crate::streaming::partitions::partition::Partition;
 use crate::streaming::polling_consumer::PollingConsumer;
 use crate::streaming::segments::segment::Segment;
+use crate::streaming::segments::time_index::TimeIndex;
 use crate::streaming::utils::random_id;
 use futures::StreamExt;
 use iggy::compression::compression_algorithm::CompressionAlgorithm;
 use iggy::error::Error;
 use iggy::models::messages::Message;
 use iggy::utils::crypto::Encryptor;
+use std::cmp::max;
 use std::sync::Arc;
 use tracing::{trace, warn};
-use crate::streaming::segments::time_index::TimeIndex;
 
 const EMPTY_MESSAGES: Vec<Message> = vec![];
 
@@ -207,7 +207,7 @@ impl Partition {
 
         self.segments[slice_start..]
             .iter()
-            .filter(|segment| segment.current_offset <= end_offset)
+            .filter(|segment| segment.start_offset <= end_offset)
             .collect()
     }
 
@@ -396,10 +396,10 @@ impl Partition {
 
         let last_offset = curr_offset - 1;
         if self.should_increment_offset {
-            self.current_offset += last_offset;
+            self.current_offset = last_offset;
         } else {
             self.should_increment_offset = true;
-            self.current_offset += last_offset;
+            self.current_offset = last_offset;
         }
         let last_offset_delta = (last_offset - begin_offset) as u32;
 
@@ -413,7 +413,9 @@ impl Partition {
         )?;
         {
             let last_segment = self.segments.last_mut().ok_or(Error::SegmentNotFound)?;
-            last_segment.append_messages(batch, last_offset, max_timestamp).await?;
+            last_segment
+                .append_messages(batch, last_offset, max_timestamp)
+                .await?;
         }
 
         /*

@@ -1,9 +1,9 @@
 use crate::streaming::common::test_setup::TestSetup;
 use crate::streaming::create_messages;
+use iggy::compression::compression_algorithm::CompressionAlgorithm;
 use iggy::messages::poll_messages::PollingStrategy;
 use iggy::messages::send_messages::Partitioning;
 use server::streaming::polling_consumer::PollingConsumer;
-use iggy::compression::compression_algorithm::CompressionAlgorithm;
 use server::streaming::topics::topic::Topic;
 use tokio::fs;
 
@@ -132,6 +132,7 @@ async fn should_purge_existing_topic_on_disk() {
             &name,
             partitions_count,
             setup.config.clone(),
+            CompressionAlgorithm::None,
             setup.storage.clone(),
             None,
         )
@@ -147,7 +148,12 @@ async fn should_purge_existing_topic_on_disk() {
         let messages = create_messages();
         let messages_count = messages.len();
         topic
-            .append_messages(&Partitioning::partition_id(1), messages)
+            .append_messages(
+                &Partitioning::partition_id(1),
+                CompressionAlgorithm::None,
+                &None,
+                messages,
+            )
             .await
             .unwrap();
         let loaded_messages = topic

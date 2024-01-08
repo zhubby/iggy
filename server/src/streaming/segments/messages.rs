@@ -1,4 +1,3 @@
-use std::ops::Deref;
 use crate::streaming::batching::messages_batch::MessagesBatch;
 use crate::streaming::segments::index::{Index, IndexRange};
 use crate::streaming::segments::segment::Segment;
@@ -7,6 +6,7 @@ use crate::streaming::storage::SegmentStorage;
 use bytes::{BufMut, Bytes};
 use iggy::error::Error;
 use iggy::models::messages::{Message, MessageState};
+use std::ops::Deref;
 use std::sync::Arc;
 use tracing::trace;
 
@@ -101,7 +101,10 @@ impl Segment {
             .into_iter()
             .cloned()
             .filter(|batch| {
-                batch.is_contained_or_overlapping_within_offset_range(relative_start_offset, relative_end_offset)
+                batch.is_contained_or_overlapping_within_offset_range(
+                    relative_start_offset,
+                    relative_end_offset,
+                )
             })
             .map(|batch| batch.into_messages())
             .collect::<Result<Vec<_>, _>>()?
@@ -198,7 +201,7 @@ impl Segment {
         }
 
         // Does this even make sense? Maybe preallocate Array with 100 capacity
-        // and then check whether we are reaching the capacity limit and resize it?
+        // and then check whether we are reaching&mut  the capacity limit and resize it?
         if let Some(indexes) = &mut self.indexes {
             indexes.reserve(1);
         }
@@ -210,9 +213,14 @@ impl Segment {
         if max_timestamp > self.current_timestamp {
             self.current_timestamp = max_timestamp;
         }
+        // Will those two always be the same ?
+        self.current_offset = last_message_offset;
+        self.end_offset = last_message_offset;
 
-        // For now ignoring timestamp index, need to calculate max_timestamp first.
-        self.store_offset_and_timestamp_index_for_batch(last_message_offset, self.current_timestamp);
+        self.store_offset_and_timestamp_index_for_batch(
+            last_message_offset,
+            self.current_timestamp,
+        );
         let batch_size = messages.get_size_bytes();
 
         let unsaved_messages = self.unsaved_messages.get_or_insert_with(Vec::new);
@@ -276,7 +284,11 @@ impl Segment {
         */
         Ok(())
     }
-    fn store_offset_and_timestamp_index_for_batch(&mut self, batch_last_offset: u64, batch_max_timestamp: u64) {
+    fn store_offset_and_timestamp_index_for_batch(
+        &mut self,
+        batch_last_offset: u64,
+        batch_max_timestamp: u64,
+    ) {
         let relative_offset = (batch_last_offset - self.start_offset) as u32;
         match (&mut self.indexes, &mut self.time_indexes) {
             (Some(indexes), Some(time_indexes)) => {
@@ -286,7 +298,7 @@ impl Segment {
                 });
                 time_indexes.push(TimeIndex {
                     relative_offset,
-                    timestamp: batch_max_timestamp 
+                    timestamp: batch_max_timestamp,
                 });
             }
             (Some(indexes), None) => {

@@ -280,25 +280,28 @@ impl SegmentStorage for FileSegmentStorage {
             return Ok(EMPTY_INDEXES);
         }
 
-        let indexes_count = file_size / 4;
+        let indexes_count = file_size / 8;
         let mut indexes = Vec::with_capacity(indexes_count);
         let mut reader = BufReader::with_capacity(BUF_READER_CAPACITY_BYTES, file);
-        for offset in 0..indexes_count {
-            match reader.read_u32_le().await {
-                Ok(position) => {
-                    indexes.push(Index {
-                        relative_offset: offset as u32,
-                        position,
-                    });
-                }
-                Err(error) => {
-                    error!(
-                        "Cannot read position from index file for offset: {}. Error: {}",
-                        offset, error
-                    );
-                    break;
-                }
-            }
+        for idx_num in 0..indexes_count {
+            let offset = reader.read_u32_le().await.map_err(|error| {
+                error!(
+                    "Cannot read offset from index file for index number: {}. Error: {}",
+                    idx_num, &error
+                );
+                error
+            })?;
+            let position = reader.read_u32_le().await.map_err(|error| {
+                error!(
+                    "Cannot read position from index file for offset: {}. Error: {}",
+                    offset, &error
+                );
+                error
+            })?;
+            indexes.push(Index {
+                relative_offset: offset,
+                position,
+            });
         }
 
         if indexes.len() != indexes_count {
@@ -424,27 +427,29 @@ impl SegmentStorage for FileSegmentStorage {
             return Ok(EMPTY_TIME_INDEXES);
         }
 
-        let indexes_count = file_size / 8;
+        let indexes_count = file_size / 12;
         let mut indexes = Vec::with_capacity(indexes_count);
         let mut reader = BufReader::with_capacity(BUF_READER_CAPACITY_BYTES, file);
-        for offset in 0..indexes_count {
-            match reader.read_u64_le().await {
-                Ok(timestamp) => {
-                    indexes.push(TimeIndex {
-                        relative_offset: offset as u32,
-                        timestamp,
-                    });
-                }
-                Err(error) => {
-                    error!(
-                        "Cannot read timestamp from time index file for offset: {}. Error: {}",
-                        offset, error
-                    );
-                    break;
-                }
-            }
+        for idx_num in 0..indexes_count {
+            let offset = reader.read_u32_le().await.map_err(|error| {
+                error!(
+                    "Cannot read offset from index file for offset: {}. Error: {}",
+                    idx_num, &error
+                );
+                error
+            })?;
+            let timestamp = reader.read_u64().await.map_err(|error| {
+                error!(
+                    "Cannot read timestamp from index file for offset: {}. Error: {}",
+                    offset, &error
+                );
+                error
+            })?;
+            indexes.push(TimeIndex {
+                relative_offset: offset,
+                timestamp,
+            });
         }
-
         if indexes.len() != indexes_count {
             error!(
                 "Loaded {} time indexes from disk, expected {}.",
@@ -481,11 +486,7 @@ impl SegmentStorage for FileSegmentStorage {
         Ok(Some(index))
     }
 
-    async fn save_time_index(
-        &self,
-        segment: &Segment,
-    ) -> Result<(), Error> {
-
+    async fn save_time_index(&self, segment: &Segment) -> Result<(), Error> {
         if let Err(err) = self
             .persister
             .append(&segment.time_index_path, &segment.unsaved_timestamps)

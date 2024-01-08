@@ -132,11 +132,12 @@ async fn should_persist_and_load_segment_with_messages() {
         messages.push(message);
     }
     let attributes = MessagesBatchAttributes::new(CompressionAlgorithm::None).create();
+    let last_timestamp = messages[..].last().unwrap().timestamp;
     let messages_batch =
         MessagesBatch::messages_to_batch(0, (messages_count - 1) as u32, attributes, messages)
             .unwrap();
     segment
-        .append_messages(messages_batch, messages_count.clone() - 1)
+        .append_messages(messages_batch, messages_count.clone() - 1, last_timestamp)
         .await
         .unwrap();
 
@@ -202,11 +203,12 @@ async fn given_all_expired_messages_segment_should_be_expired() {
         expired_timestamp += 1;
     }
     let attributes = MessagesBatchAttributes::new(CompressionAlgorithm::None).create();
+    let last_timestamp = messages[..].last().unwrap().timestamp;
     let message_batch =
         MessagesBatch::messages_to_batch(0, (messages_count - 1) as u32, attributes, messages)
             .unwrap();
     segment
-        .append_messages(message_batch, messages_count - 1)
+        .append_messages(message_batch, messages_count - 1, last_timestamp)
         .await
         .unwrap();
 
@@ -265,11 +267,11 @@ async fn given_at_least_one_not_expired_message_segment_should_not_be_expired() 
         MessagesBatch::messages_to_batch(1, 2, attributes, not_expired_messages).unwrap();
 
     segment
-        .append_messages(expired_message_batch, 1)
+        .append_messages(expired_message_batch, 1, 0)
         .await
         .unwrap();
     segment
-        .append_messages(not_expired_message_batch, 2)
+        .append_messages(not_expired_message_batch, 2, 0)
         .await
         .unwrap();
     segment

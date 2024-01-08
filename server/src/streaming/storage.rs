@@ -120,10 +120,7 @@ pub trait SegmentStorage: Storage<Segment> {
     async fn save_index(&self, segment: &Segment) -> Result<(), Error>;
     async fn load_all_time_indexes(&self, segment: &Segment) -> Result<Vec<TimeIndex>, Error>;
     async fn load_last_time_index(&self, segment: &Segment) -> Result<Option<TimeIndex>, Error>;
-    async fn save_time_index(
-        &self,
-        segment: &Segment,
-    ) -> Result<(), Error>;
+    async fn save_time_index(&self, segment: &Segment) -> Result<(), Error>;
 }
 
 #[derive(Debug)]
@@ -482,10 +479,7 @@ pub(crate) mod tests {
             Ok(None)
         }
 
-        async fn save_time_index(
-            &self,
-            _segment: &Segment,
-        ) -> Result<(), Error> {
+        async fn save_time_index(&self, _segment: &Segment) -> Result<(), Error> {
             Ok(())
         }
     }

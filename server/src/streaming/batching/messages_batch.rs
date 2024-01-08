@@ -175,9 +175,13 @@ impl MessagesBatch {
 
         Ok(messages)
     }
-    pub fn is_contained_or_overlapping_within_offset_range(&self, start_offset: u64, end_offset: u64) -> bool {
-        (self.base_offset <= end_offset && self.get_last_offset() >= end_offset) ||
-            (self.base_offset <= start_offset && self.get_last_offset() <= end_offset)
+    pub fn is_contained_or_overlapping_within_offset_range(
+        &self,
+        start_offset: u64,
+        end_offset: u64,
+    ) -> bool {
+        (self.base_offset <= end_offset && self.get_last_offset() >= end_offset)
+            || (self.base_offset <= start_offset && self.get_last_offset() <= end_offset)
     }
     pub fn get_size_bytes(&self) -> u32 {
         return METADATA_BYTES_LEN + self.messages.len() as u32;
